@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from typing import Iterable
 
-class DataSet():
+class SynteticData():
     def __init__(self, 
                  x_range: Iterable[float] = [0, 1], 
                  y_range: Iterable[float] = [0, 1], 
@@ -53,7 +53,17 @@ class DataSet():
         noise = np.random.normal(loc=0.0, scale=noise_sigma, size=self.N)
         return (func + noise).reshape(-1, 1)
 
+"""
+class ResponseData():
+    def __init__(self,
+                 path = '../data/response.csv'):
 
+
+    def standardize(self):
+
+
+    def plot_data():
+"""
 
         
 

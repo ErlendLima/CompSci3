@@ -5,7 +5,7 @@ from torch.optim import Adam
 import numpy as np
 from typing import Iterable, Optional
 from bayesian_layer import BayesianLayer
-from data import DataSet
+from data import SynteticData
 import matplotlib.pyplot as plt
 
 class BayesianNet(Module):
@@ -64,7 +64,7 @@ class BayesianNet(Module):
         return preds, means, ql, qu
 
 if __name__ == '__main__':
-    ds = DataSet(N=1000, noise_sigma=0.1, grid_type='random')
+    ds = SynteticData(N=1000, noise_sigma=0.1, grid_type='random')
     X = torch.from_numpy(ds.X).float()
     labels = torch.from_numpy(ds.labels).float()
 

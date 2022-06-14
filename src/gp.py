@@ -1,6 +1,6 @@
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
-from data import DataSet
+from data import SynteticData
 import matplotlib.pyplot as plt
 
 
@@ -19,7 +19,7 @@ gp = GaussianProcessRegressor(kernel=kernel + data_noise_variance,
                                     n_restarts_optimizer=optimizer_runs-1)
 
 
-ds = DataSet(N=1000, noise_sigma=0.1, grid_type='random')
+ds = SynteticData(N=1000, noise_sigma=0.1, grid_type='random')
 X = ds.X
 labels = ds.labels
 
