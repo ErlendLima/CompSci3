@@ -42,13 +42,15 @@ def posterior_predictions(path_post_equal_weights, X, N):
     post_samples = np.loadtxt(path_post_equal_weights)
     nsamples = post_samples.shape[0]
     ypreds = np.zeros((nsamples, N))
+    
     for i in range(nsamples):
         print(i)
         mu_i = model_mean(post_samples[i, :-1], X)
-        #cov_i = (post_samples[i, -2]**2)*np.identity(N)
         for j in range(N):
             ypreds[i, j] = norm.rvs(loc=mu_i[j], scale=post_samples[i, -2], size=1)
-    return ypreds
+
+    ypreds_mean = X @ np.reshape(np.mean(post_samples[:, :-2], axis=0), (-1, 1))
+    return ypreds, ypreds_mean.flatten()
 
 
 if __name__ == '__main__':
@@ -68,7 +70,6 @@ if __name__ == '__main__':
     results = run_multinest(parameters, X, y)
     corner.corner(results['samples'], labels=parameters)
 
-    ypreds = posterior_predictions('tests/test1_post_equal_weights.dat', X, data.N)
-    ypreds_mean = np.mean(ypreds, axis=0)
-    ax.plot(np.log10(data.x), ypreds_mean)
+    ypreds, ypreds_mean = posterior_predictions('tests/test1_post_equal_weights.dat', X, data.N)
+    ax.plot(np.log10(data.x), ypreds_mean, color='tab:red')
     plt.show()

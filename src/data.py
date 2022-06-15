@@ -120,7 +120,7 @@ class ResponseData():
         if y is None:
             y = self.y
         fig, ax = plt.subplots()
-        ax.scatter(np.log10(x) if log_plot else x, np.log10(y) if log_plot else y,  s=0.75)
+        ax.scatter(np.log10(x) if log_plot else x, np.log10(y) if log_plot else y,  s=0.75, color='tab:blue')
         ax.set_xlabel('$\mathrm{log}_{10} E_g$' if log_plot else '$E_g$')
         ax.set_ylabel('$\mathrm{log}_{10}$' + self.labels_name if log_plot else self.labels_name)
 
