@@ -1,6 +1,11 @@
 import numpy as np
-import torch
+import pandas as pd
 from typing import Iterable
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+from matplotlib.scale import LogScale
+
 
 class SynteticData():
     def __init__(self, 
@@ -53,17 +58,78 @@ class SynteticData():
         noise = np.random.normal(loc=0.0, scale=noise_sigma, size=self.N)
         return (func + noise).reshape(-1, 1)
 
-"""
+
 class ResponseData():
     def __init__(self,
-                 path = '../data/response.csv'):
+                 path: str = '../data/response.csv',
+                 labels_name: str = 'DE',
+                 log_fit: bool = True,
+                 bias_term: bool = True,
+                 model_order: int = 3):
+        self.data = pd.read_csv(path)
+        self.labels_name = labels_name
+        self.log_fit = log_fit
+        self.bias_term = bias_term
+        self.model_order = model_order
+    
+        self.x = self.data['Eg'].values
+        self.x[self.x < 1.0e-12] = 1e-12
+        self.N = len(self.x)
+        self.y = self.data[self.labels_name].values
+        self.y[self.y < 1.0e-12] = 1e-12
 
 
-    def standardize(self):
+
+        
+    def cut_data(self, E_low=None, E_high=None):
+        if E_low is not None:
+            bool_arr = self.x > E_low
+            self.x = self.x[bool_arr]
+            self.y = self.y[bool_arr]
+        if E_high is not None:
+            bool_arr = self.x < E_high
+            self.x = self.x[bool_arr]
+            self.y = self.y[bool_arr]
+
+        self.N = len(self.x)
+
+    def create_design_matrix(self):
+        X = np.zeros((self.N, self.model_order + 1))
+        X[:, 0] = 1.0 
+        for i in range(1, self.model_order+1):
+            X[:, i] = (np.log10(self.x))**i
+
+        self.X = X if self.bias_term else X[:, 1:]
+        return self.X
+
+    def split_data(self, test_size=0.3):
+        return train_test_split(self.X, self.y, test_size=test_size, random_state=100)
+
+    def standardize(self, X_train, X_test=None):
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+        if X_test is None:
+            return X_train
+        else:
+            X_test = scaler.transform(X_test)
+            return X_train, X_test
+        
+    def plot_data(self, x=None, y=None, log_plot=True):
+        if x is None:
+            x = self.x
+        if y is None:
+            y = self.y
+        fig, ax = plt.subplots()
+        ax.scatter(np.log10(x) if log_plot else x, np.log10(y) if log_plot else y,  s=0.75)
+        ax.set_xlabel('$\mathrm{log}_{10} E_g$' if log_plot else '$E_g$')
+        ax.set_ylabel('$\mathrm{log}_{10}$' + self.labels_name if log_plot else self.labels_name)
+
+        return ax
+
+        
 
 
-    def plot_data():
-"""
+
 
         
 
