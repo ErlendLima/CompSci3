@@ -1,16 +1,25 @@
 import numpy as np
 import pandas as pd
-from typing import Iterable
+from typing import Iterable, TypeAlias, Callable
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from matplotlib.scale import LogScale
 from stubs import Axes, Array
 from utils import maybe_set_xlabel, maybe_set_ylabel
-from model import Model
+from model import DataModel
 
+LoglikeFn: TypeAlias = Callable[[Array], float]
 
-class SynteticData():
+class Data:
+    model: DataModel
+    x: Array
+    y: Array
+
+    def get_data(self) -> tuple[Array, Array]:
+        ...
+
+class SynteticData:
 
     def __init__(self,
                  x_range: Iterable[float] = [0, 1],
@@ -69,10 +78,10 @@ class SynteticData():
         return (func + noise).reshape(-1, 1)
 
 
-class ResponseData():
+class ResponseData(Data):
 
     def __init__(self,
-                 model: Model,
+                 model: DataModel,
                  path: str = '../data/response_p.csv',
                  label: str = 'DE',
                  log_fit: bool = True):
@@ -95,15 +104,6 @@ class ResponseData():
             bool_arr = self.x < E_high
             self.x = self.x[bool_arr]
             self.y = self.y[bool_arr]
-
-    def create_design_matrix(self):
-        X = np.zeros((self.N, self.model_order + 1))
-        X[:, 0] = 1.0
-        for i in range(1, self.model_order + 1):
-            X[:, i] = (np.log10(self.x))**i
-
-        self.X = X if self.bias_term else X[:, 1:]
-        return self.X
 
     def split(self, test_size=0.3):
         X, Y = self.get_data()
@@ -131,7 +131,7 @@ class ResponseData():
         if ax is None:
             _, ax = plt.subplots()
 
-        kwargs |= {'s': 0.75}
+        kwargs = {'s': 0.75} | kwargs
         ax.scatter(self.x, self.y, **kwargs)
         ax.maybe_set_xlabel(r"$E_{\gamma}$")
         ax.maybe_set_ylabel(f"P({self.label})")
@@ -143,6 +143,13 @@ class ResponseData():
         #              self.labels_name if log_plot else self.labels_name)
 
         return ax
+
+    def prefix(self) -> str:
+        return self.label + self.model.prefix_() + '/mn_'
+
+    def likelihoodfn(self) -> LoglikeFn:
+        X, y = self.get_data()
+        return self.model.likelihoodfn(X, y)
 
     @property
     def N(self) -> int:
