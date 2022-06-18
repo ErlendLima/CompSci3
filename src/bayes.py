@@ -25,18 +25,11 @@ def run_multinest(data: ResponseData,
     Path(path).mkdir(exist_ok=True)
 
     loglike = data.likelihoodfn()
-
-    #def loglike(params: Array) -> float:
-    #    mu = model(params, X)
-    #    loglike = -0.5 * np.sqrt(((Y - mu)**2 / Y)**2).sum()
-    #    if not np.isfinite(loglike):
-    #        loglike = -1e12
-    #    return loglike
+    kwargs = {'n_live_points': 1000} | kwargs
 
     results = solve(LogLikelihood=loglike,
                     Prior=data.model.prior_transform,
                     n_dims=ndim,
-                    n_live_points=1000,
                     outputfiles_basename=prefix,
                     resume=False,
                     verbose=verbose,

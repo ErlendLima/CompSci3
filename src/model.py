@@ -8,8 +8,8 @@ Prior: TypeAlias = Callable[[Array], Array]
 
 
 class Model(ABC):
-    def __call__(self, x: Array, p: Array) -> Array:
-        return self.eval(x, p)
+    def __call__(self, p: Array, x: Array) -> Array:
+        return self.eval(p, x)
 
     @abstractmethod
     def eval(self, x: Array, p: Array) -> Array:
@@ -118,9 +118,7 @@ class Gsf3Model(Model):
     def prior_transform(self, cube: Array) -> Array:
         for i in range(2*(self.order+1)):
             cube[i] = 200*cube[i] - 100
-        #cube[2] = 0*cube[i]
-        #cube[-2] = 0*cube[i]
-        cube[-1] = 200*cube[i] - 100
+        cube[-1] = 25*cube[-1]+0.1
         return cube
 
     def eval(self, parameters: Array, X: Array) -> Array:
@@ -141,6 +139,13 @@ class Gsf3Model(Model):
         return low + high + ['G']
 
 class Noise(ABC):
+    def __call__(self, p: Array, y: Array, y_hat: Array) -> Array:
+        return self.eval(p, y, y_hat)
+
+    @abstractmethod
+    def eval(self, p: Array, y: Array, y_hat: Array) -> Array:
+        ...
+
     @abstractmethod
     def prefix_(self) -> str:
         ...
@@ -162,9 +167,13 @@ class Noise(ABC):
     def num_parameters(self) -> int:
         ...
 
+
 class EmpiricalPoisson(Noise):
     def likelihood(self, p: Array, y: Array, y_hat: Array) -> float:
         return -0.5 * (((y - y_hat)/y)**2).sum()
+
+    def eval(self, p: Array, y: Array, y_hat: Array) -> Array:
+        return np.sqrt(y)
 
     @property
     def num_parameters(self) -> int:
@@ -184,6 +193,9 @@ class FitNoise(Noise):
     def __init__(self, prior: Prior):
         self.prior = prior
 
+    def eval(self, p: Array, y: Array, y_hat: Array) -> Array:
+        return p[0]
+
     def likelihood(self, p: Array, y: Array, y_hat: Array) -> float:
         return -0.5 * ((y - y_hat)**2/p[0]).sum()
 
@@ -192,7 +204,37 @@ class FitNoise(Noise):
         return 1
 
     def prefix_(self) -> str:
-        return 'FN'
+        # Encode the prior by prior(1)
+        return f'FN{self.prior(np.array([1]))}'
+
+    def parameters(self) -> list[str]:
+        return ['sigma']
+
+    def prior_transform(self, cube: Array) -> Array:
+        cube[-1] = self.prior(cube[-1])
+        return cube
+
+
+class EmpiricalFitNoise(Noise):
+    """ Fit the noise using a prior based on data
+
+    """
+    def __init__(self, prior: Prior):
+        self.prior = prior
+
+    def eval(self, p: Array, y: Array, y_hat: Array) -> Array:
+        return p[0]
+
+    def likelihood(self, p: Array, y: Array, y_hat: Array) -> float:
+        return -0.5 * ((y - y_hat)**2/p[0]).sum()
+
+    @property
+    def num_parameters(self) -> int:
+        return 1
+
+    def prefix_(self) -> str:
+        # Encode the prior by prior(1)
+        return f'FN{self.prior(np.array([1]))}'
 
     def parameters(self) -> list[str]:
         return ['sigma']
@@ -216,8 +258,6 @@ class DataModel:
     def prior_transform(self, cube: Array) -> Array:
 
         model_cube, noise_cube = self.split_parameters(cube)
-        print(len(model_cube))
-        print(len(noise_cube))
 
         self.model.prior_transform(model_cube)
         self.noise.prior_transform(noise_cube)
@@ -270,5 +310,11 @@ class DataModel:
     def num_parameters(self) -> int:
         return self.model.num_parameters + self.noise.num_parameters
 
-    def __call__(self, x: Array, p: Array) -> Array:
-        return self.model(x, p)
+    def __call__(self, p: Array, x: Array) -> Array:
+        return self.model(p, x)
+
+    @property
+    def name(self) -> str:
+        model = self.model.__class__.__name__
+        noise = self.noise.__class__.__name__
+        return f'{model} + {noise}'
