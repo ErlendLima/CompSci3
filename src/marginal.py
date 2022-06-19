@@ -65,6 +65,11 @@ def marginal_plot(posterior: Posterior, fig: Figure | None = None,
         plot_hist(ax, params[:, i], **histkw)
         ax.tick_params(axis='x', bottom=False, top=True, labelbottom=False, labeltop=True)
         ax.tick_params(axis='y', left=False, right=True, labelleft=False, labelright=True)
+        ax.spines.right.set_visible(True)
+        ax.spines.top.set_visible(True)
+        ax.spines.left.set_visible(False)
+        ax.spines.bottom.set_visible(False)
+
         if plot_mean:
             plot_lines(ax, posterior.mean[i], **meankw)
         if plot_map:
@@ -84,10 +89,12 @@ def marginal_plot(posterior: Posterior, fig: Figure | None = None,
             ax.tick_params(axis='y', left=False, labelleft=False)
             if j == 0:
                 ax.tick_params(axis='y', left=True, labelleft=True)
-                ax.set_ylabel(labels[i])
+                label = fixlabel(labels[i])
+                ax.set_ylabel(label)
             if i == N-1:
                 ax.tick_params(axis='x', bottom=True, labelbottom=True)
-                ax.set_xlabel(labels[j])
+                label = fixlabel(labels[j])
+                ax.set_xlabel(label)
 
     #fig.set_constrained_layout_pads(w_pad=0, h_pad=0, hspace=0, wspace=0)
     fig.subplots_adjust(wspace=0.05, hspace=0.05)
@@ -201,3 +208,43 @@ def plot_lines(ax: Axes, x: float, y: float | None = None, **kwargs) -> None:
     ax.axvline(x=x, **kwargs)
     if y is not None:
         ax.axhline(y=y, **kwargs)
+
+
+def fixlabel(label: str) -> str:
+    if label == 'sigma':
+        return r'$\sigma$'
+    i = label[-1]
+    return '$C_{' + i + '}$'
+
+
+def single_marginal(posterior: Posterior,
+                    label: str,
+                    other: str,
+                    fig: Figure | None = None,
+                    histkw: PltKwargs = None,
+                    contkw: PltKwargs = None,
+                    scatterkw: PltKwargs = None,
+                    contourkw: PltKwargs = None,
+                    bins: int = 20):
+    histkw = {} if histkw is None else histkw
+    scatterkw = {} if scatterkw is None else scatterkw
+    contourkw = {} if contourkw is None else contourkw
+    histkw = {'bins': bins} | histkw
+    contourkw = {'bins': bins} | contourkw
+    if fig is None:
+        fig = plt.figure()
+    (axh, axm) = fig.subplots(2, 1, sharex=True)
+    N = posterior.data.model.num_parameters
+    samples = posterior.samples
+    model_params, noise_params, likelihood = posterior.data.model.split_samples(samples)
+    params = np.hstack([model_params, noise_params])
+    labels = posterior.data.model.parameters()
+    idx = labels.index(label)
+    idy = labels.index(other)
+    x = params[:, idx]
+    y = params[:, idy]
+    plot_hist(axh, x, **histkw)
+    scatter(axm, x, y, **scatterkw)
+    contour(axm, x, y, **contourkw)
+    axm.set_xlabel(fixlabel(label))
+    axm.set_ylabel(fixlabel(other))

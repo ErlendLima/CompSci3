@@ -9,6 +9,7 @@ from pathlib import Path
 def newfig(N: int = 1,
            height: Optional[float] = None,
            plot3d: bool = False,
+           width: float = 1,
            nrows=1,
            ncols=1,
            sharex=False,
@@ -18,6 +19,7 @@ def newfig(N: int = 1,
     fig_width, fig_height = half_fig()
     if height is not None:
         fig_height *= height
+    fig_width *= width
     fig_size = [N * ncols * fig_width, N * nrows * fig_height]
     fig = plt.figure(figsize=(fig_size[0], fig_size[1]), **kwargs)
     if addax:

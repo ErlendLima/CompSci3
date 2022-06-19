@@ -1,4 +1,7 @@
 from abc import ABC, abstractmethod
+
+from scipy import stats
+
 from stubs import Array
 import numpy as np
 from typing import Callable, TypeAlias
@@ -138,6 +141,7 @@ class Gsf3Model(Model):
         high = [f'H{i}' for i in range(self.order+1)]
         return low + high + ['G']
 
+
 class Noise(ABC):
     def __call__(self, p: Array, y: Array, y_hat: Array) -> Array:
         return self.eval(p, y, y_hat)
@@ -215,12 +219,13 @@ class FitNoise(Noise):
         return cube
 
 
-class EmpiricalFitNoise(Noise):
+class GaussianNoise(Noise):
     """ Fit the noise using a prior based on data
 
     """
-    def __init__(self, prior: Prior):
-        self.prior = prior
+    def __init__(self, mu: float, sigma: float):
+        self.mu = mu
+        self.sigma = sigma
 
     def eval(self, p: Array, y: Array, y_hat: Array) -> Array:
         return p[0]
@@ -234,15 +239,127 @@ class EmpiricalFitNoise(Noise):
 
     def prefix_(self) -> str:
         # Encode the prior by prior(1)
-        return f'FN{self.prior(np.array([1]))}'
+        return f'GN{self.mu}{self.sigma}'
 
     def parameters(self) -> list[str]:
         return ['sigma']
 
     def prior_transform(self, cube: Array) -> Array:
-        cube[-1] = self.prior(cube[-1])
+        cube[-1] = stats.norm(self.mu, self.sigma).ppf(cube[-1])
+        cube[-1] = np.clip(cube[-1], 1e-6, np.inf)
         return cube
 
+
+class HalfNormalNoise(Noise):
+    """ Fit the noise using a prior based on data
+
+    """
+    def __init__(self, mu: float, sigma: float):
+        self.mu = mu
+        self.sigma = sigma
+
+    def eval(self, p: Array, y: Array, y_hat: Array) -> Array:
+        return p[0]
+
+    def likelihood(self, p: Array, y: Array, y_hat: Array) -> float:
+        return -0.5 * ((y - y_hat)**2/p[0]).sum()
+
+    @property
+    def num_parameters(self) -> int:
+        return 1
+
+    def prefix_(self) -> str:
+        # Encode the prior by prior(1)
+        return f'HN{self.mu}{self.sigma}'
+
+    def parameters(self) -> list[str]:
+        return ['sigma']
+
+    def prior_transform(self, cube: Array) -> Array:
+        cube[-1] = stats.halfnorm(self.mu, self.sigma).ppf(cube[-1])
+        cube[-1] = np.clip(cube[-1], 1e-6, np.inf)
+        return cube
+
+
+class ExponentialNoise(Noise):
+    """ Fit the noise using a prior based on data
+
+    """
+    def __init__(self, loc: float, scale: float):
+        self.loc = loc
+        self.scale = scale
+
+    def eval(self, p: Array, y: Array, y_hat: Array) -> Array:
+        return p[0]
+
+    def likelihood(self, p: Array, y: Array, y_hat: Array) -> float:
+        return -0.5 * ((y - y_hat)**2/p[0]).sum()
+
+    @property
+    def num_parameters(self) -> int:
+        return 1
+
+    def prefix_(self) -> str:
+        # Encode the prior by prior(1)
+        return f'Exp{self.loc}{self.scale}'
+
+    def parameters(self) -> list[str]:
+        return ['sigma']
+
+    def prior_transform(self, cube: Array) -> Array:
+        cube[-1] = stats.expon(self.loc, self.scale).ppf(cube[-1])
+        cube[-1] = np.clip(cube[-1], 1e-6, np.inf)
+        return cube
+
+
+class ConstantNoise(Noise):
+    def __init__(self, sigma: float):
+        self.sigma = sigma
+
+    def eval(self, p: Array, y: Array, y_hat: Array) -> Array:
+        return self.sigma
+
+    def likelihood(self, p: Array, y: Array, y_hat: Array) -> float:
+        return -0.5 * ((y - y_hat)**2/self.sigma).sum()
+
+    @property
+    def num_parameters(self) -> int:
+        return 0
+
+    def prefix_(self) -> str:
+        # Encode the prior by prior(1)
+        return f'CN{self.sigma}'
+
+    def parameters(self) -> list[str]:
+        return []
+
+    def prior_transform(self, cube: Array) -> Array:
+        return cube
+
+
+class EmpiricalNoise(Noise):
+    def __init__(self, sigmas: Array):
+        self.sigmas = sigmas
+
+    def eval(self, p: Array, y: Array, y_hat: Array) -> Array:
+        return self.sigmas
+
+    def likelihood(self, p: Array, y: Array, y_hat: Array) -> float:
+        return -0.5 * ((y - y_hat)**2/self.sigmas).sum()
+
+    @property
+    def num_parameters(self) -> int:
+        return 0
+
+    def prefix_(self) -> str:
+        # Encode the prior by prior(1)
+        return f'Sigmas{self.sigmas[0]}'
+
+    def parameters(self) -> list[str]:
+        return []
+
+    def prior_transform(self, cube: Array) -> Array:
+        return cube
 
 class DataModel:
     """ Wrapper that combines a Model and a Noise

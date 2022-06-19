@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -16,13 +17,6 @@ SampleType = Literal['predictions', 'samples']
 
 
 class Posterior:
-    importance_evidence: list[float]
-    evidence: list[float]
-    mean: Array
-    std: Array
-    ml: Array
-    MAP: Array
-
     def __init__(self, data: ResponseData, prefix: str | None = None):
         prefix = data.prefix() if prefix is None else prefix
         self.samples = np.loadtxt(prefix + 'post_equal_weights.dat')
@@ -34,6 +28,12 @@ class Posterior:
         self.model_params = mp
         self.noise_params = np_
         self.likelihood = lh
+        self.importance_evidence: list[float] = []
+        self.evidence: list[float] = []
+        self.mean: Array = np.array([])
+        self.std: Array = np.array([])
+        self.ml: Array = np.array([])
+        self.MAP: Array = np.array([])
         self._load_stats()
         self._load_samples()
 
@@ -125,6 +125,32 @@ class Posterior:
     def sample_predictions(self, n, which: str = 'mean'):
         pass
 
+    def logBF(self, other: Posterior,  importance: bool = False) -> (float, float, float):
+        if importance:
+            evidence = self.importance_evidence
+            other_evidence = other.importance_evidence
+        else:
+            evidence = self.evidence
+            other_evidence = other.evidence
+        high = (evidence[0] - evidence[1]) - (other_evidence[0] + other_evidence[1])
+        low = (evidence[0] + evidence[1]) - (other_evidence[0] - other_evidence[1])
+        mean = evidence[0] - other_evidence[0]
+        return mean, low, high
+
+    def _assess(self):
+        alphas = [0.05, 0.01, 0.001]
+        _, y = self.data.get_data()
+        for alpha in alphas:
+            l, h = self.quantiles(alpha)
+            within = np.sum((y > l) & (y < h)) / len(y)
+            print(f"{1 - alpha:.3f}: {within:.3f} {within / (1-alpha)}")
+
+    def assess(self, quantile=0.05):
+        _, y = self.data.get_data()
+        l, h = self.quantiles(quantile)
+        within = np.sum((y > l) & (y < h)) / len(y)
+        return within / (1 - quantile)
+
     def plot(self, x: Array | None = None,
              ax: Axes | None = None,
              quantile: float | None = 0.05,
@@ -146,7 +172,7 @@ class Posterior:
         if False:# len(self.predictions) < 1:
             print("Call predict() to plot quantiles.")
         else:
-            kwargs = {'alpha': 0.3} | kwargs
+            kwargs = {'alpha': 0.3, 'zorder': 0} | kwargs
             x = self.data.x
             low, high = self.quantiles(alpha_)
             ax.fill_between(x, y1=low, y2=high, **kwargs)
@@ -177,7 +203,7 @@ class Posterior:
         if nsamples > len(self):
             raise ValueError(f"Too many samples. {nsamples} > {len(self)}")
 
-        kwargs = {'color': 'r', 'alpha': 0.1} | kwargs
+        kwargs = {'color': 'C2', 'alpha': 0.1} | kwargs
 
         if len(self.mu) < 1:
             print("Call sample() to plot quantiles.")
@@ -235,7 +261,7 @@ class Posterior:
         ax.plot(x, ml, **kwargs)
         return ax
 
-    def summary(self) -> str:
+    def summary(self) -> None:
         s = ''
 
         def put(x):
@@ -265,7 +291,7 @@ class Posterior:
             for map in self.MAP:
                 put(f'{map:.8e}')
         # CL
-        return s
+        print(s)
 
     def __len__(self) -> int:
         return self.samples.shape[0]

@@ -133,7 +133,7 @@ class ResponseData(Data):
 
         kwargs = {'s': 0.75} | kwargs
         ax.scatter(self.x, self.y, **kwargs)
-        ax.maybe_set_xlabel(r"$E_{\gamma}$")
+        ax.maybe_set_xlabel(r"$E_{\gamma}$ [keV]")
         ax.maybe_set_ylabel(f"P({self.label})")
         if log:
             ax.set_xscale('log')
