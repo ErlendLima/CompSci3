@@ -213,9 +213,8 @@ def plot_lines(ax: Axes, x: float, y: float | None = None, **kwargs) -> None:
 def fixlabel(label: str) -> str:
     if label == 'sigma':
         return r'$\sigma$'
-    i = label[-1]
+    i = label[1:]
     return '$C_{' + i + '}$'
-
 
 def single_marginal(posterior: Posterior,
                     label: str,

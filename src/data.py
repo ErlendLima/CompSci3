@@ -94,6 +94,10 @@ class ResponseData(Data):
         self.x[self.x < 1.0e-12] = 1e-12
         self.y = self.data[self.label].values
         self.y[self.y < 1.0e-12] = 1e-12
+        #i = np.random.choice(range(len(self.x)), size=350, replace=False)
+        #i = sorted(i)
+        #self.x = self.x[i]
+        #self.y = self.y[i]
 
     def cut(self, E_low=None, E_high=None):
         if E_low is not None:
